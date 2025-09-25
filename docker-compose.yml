@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  accounts:
+    build: ./accounts
+    container_name: accounts
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./accounts:/app  
+    environment:
+      - DATABASE_NAME=account_db
+      - DATABASE_USER=account_user
+      - DATABASE_PASSWORD=account_pass
+      - DATABASE_HOST=account_db
+      - DATABASE_PORT=5432
+    depends_on:
+      - account_db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+
+  todo:
+    build: ./todo
+    container_name: todo
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./todo:/app  
+    environment:
+      - DATABASE_NAME=todo_db
+      - DATABASE_USER=todo_user
+      - DATABASE_PASSWORD=todo_pass
+      - DATABASE_HOST=todo_db
+      - DATABASE_PORT=5432
+    depends_on:
+      - todo_db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+
+  account_db:
+    image: postgres:15
+    container_name: account_db
+    restart: always
+    environment:
+      - POSTGRES_DB=account_db
+      - POSTGRES_USER=account_user
+      - POSTGRES_PASSWORD=account_pass
+    volumes:
+      - account_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  
+
+
+  todo_db:
+    image: postgres:14
+    container_name: todo_db
+    restart: always
+    environment:
+      - POSTGRES_DB=todo_db
+      - POSTGRES_USER=todo_user
+      - POSTGRES_PASSWORD=todo_pass
+    volumes:
+      - todo_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"  
+
+# -------------------------
+# for persistence
+# -------------------------
+volumes:
+  account_data:
+  todo_data:

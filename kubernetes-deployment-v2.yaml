@@ -1,0 +1,358 @@
+# =========================================
+# Secrets for database credentials
+# =========================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: account-db-secret
+type: Opaque
+data:
+  POSTGRES_DB: YWNjb3VudF9kYg==       # account_db
+  POSTGRES_USER: YWNjb3VudF91c2Vy     # account_user
+  POSTGRES_PASSWORD: YWNjb3VudF9wYXNz # account_pass
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: todo-db-secret
+type: Opaque
+data:
+  POSTGRES_DB: dG9kby5kYg==           # todo_db
+  POSTGRES_USER: dG9kb191c2Vy         # todo_user
+  POSTGRES_PASSWORD: dG9kb19wYXNz     # todo_pass
+
+# =========================================
+# ConfigMap for DB host/ports
+# =========================================
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: django-config
+data:
+  ACCOUNTS_DB_HOST: "account-db"
+  ACCOUNTS_DB_PORT: "5432"
+  TODO_DB_HOST: "todo-db"
+  TODO_DB_PORT: "5432"
+
+
+
+# =========================================
+# Postgres StatefulSets
+# =========================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-db
+spec:
+  selector:
+    app: account-db
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: account-db
+spec:
+  serviceName: account-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account-db
+  template:
+    metadata:
+      labels:
+        app: account-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+        ports:
+          - containerPort: 5432
+        envFrom:
+          - secretRef:
+              name: account-db-secret
+        volumeMounts:
+          - name: postgres-data
+            mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-db
+spec:
+  selector:
+    app: todo-db
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: todo-db
+spec:
+  serviceName: todo-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-db
+  template:
+    metadata:
+      labels:
+        app: todo-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+        ports:
+          - containerPort: 5432
+        envFrom:
+          - secretRef:
+              name: todo-db-secret
+        volumeMounts:
+          - name: postgres-data
+            mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+
+# =========================================
+# Accounts Deployment + LoadBalancer
+# =========================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounts
+  template:
+    metadata:
+      labels:
+        app: accounts
+    spec:
+      initContainers:
+      - name: init-db
+        image: payelmahapatra/accounts:latest
+        command:
+          - sh
+          - -c
+          - |
+            python - <<EOF
+            import socket, time, os
+            host = os.environ["DATABASE_HOST"]
+            port = int(os.environ["DATABASE_PORT"])
+            while True:
+                try:
+                    s = socket.socket()
+                    s.connect((host, port))
+                    s.close()
+                    break
+                except:
+                    print("Waiting for DB...")
+                    time.sleep(2)
+            EOF
+            python manage.py migrate
+        env:
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: account-db-secret
+              key: POSTGRES_DB
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: account-db-secret
+              key: POSTGRES_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: account-db-secret
+              key: POSTGRES_PASSWORD
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: ACCOUNTS_DB_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: ACCOUNTS_DB_PORT
+      containers:
+      - name: accounts
+        image: payelmahapatra/accounts:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: account-db-secret
+              key: POSTGRES_DB
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: account-db-secret
+              key: POSTGRES_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: account-db-secret
+              key: POSTGRES_PASSWORD
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: ACCOUNTS_DB_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: ACCOUNTS_DB_PORT
+        command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts
+spec:
+  type: LoadBalancer
+  selector:
+    app: accounts
+  ports:
+    - name: http
+      port: 8000
+      nodePort: 30080
+      protocol: TCP
+
+# =========================================
+# Todo Deployment + LoadBalancer
+# =========================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo
+  template:
+    metadata:
+      labels:
+        app: todo
+    spec:
+      initContainers:
+      - name: init-db
+        image: payelmahapatra/todo:latest
+        command:
+          - sh
+          - -c
+          - |
+            python - <<EOF
+            import socket, time, os
+            host = os.environ["DATABASE_HOST"]
+            port = int(os.environ["DATABASE_PORT"])
+            while True:
+                try:
+                    s = socket.socket()
+                    s.connect((host, port))
+                    s.close()
+                    break
+                except:
+                    print("Waiting for DB...")
+                    time.sleep(2)
+            EOF
+            python manage.py migrate
+        env:
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: todo-db-secret
+              key: POSTGRES_DB
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: todo-db-secret
+              key: POSTGRES_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: todo-db-secret
+              key: POSTGRES_PASSWORD
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: TODO_DB_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: TODO_DB_PORT
+      containers:
+      - name: todo
+        image: payelmahapatra/todo:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: todo-db-secret
+              key: POSTGRES_DB
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: todo-db-secret
+              key: POSTGRES_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: todo-db-secret
+              key: POSTGRES_PASSWORD
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: TODO_DB_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: django-config
+              key: TODO_DB_PORT
+        command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo
+spec:
+  type: LoadBalancer
+  selector:
+    app: todo
+  ports:
+    - name: http
+      port: 8000
+      nodePort: 30081
+      protocol: TCP

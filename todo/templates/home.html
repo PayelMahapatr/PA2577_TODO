@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Tasks</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        ul { list-style-type: none; padding: 0; }
+        li { padding: 8px; border-bottom: 1px solid #ddd; }
+        button { margin-left: 5px; }
+        #task-form { margin-top: 20px; }
+    </style>
+</head>
+<body>
+  <h1>Welcome {{ username }}</h1>
+  <!-- Task List <p>JWT token: {{ request.session.jwt }}</p>-->
+  <!-- Task List<p>User_Id: {{ request.session.user_id }}</p>-->
+
+  <a href="{% url 'todolist:logout' %}">Logout From Application</a>
+ 
+
+
+  <h2>Your Tasks</h2>
+  <button onclick="showCreateForm()">Add Task</button>
+
+  <!-- Task Creation Form -->
+  <div id="task-form" style="display:none;">
+    <h3>Create Task</h3>
+    <form id="createTaskForm">
+     Task Name: <input type="text" id="task_name" placeholder="task_name" required><br><br>
+      Description:<textarea id="description" placeholder="Description"></textarea><br><br>
+      Is it completed?<input type="checkbox" id="completed" name="completed"><br><br>
+      <button type="submit">Save</button>
+      <button type="button" onclick="hideCreateForm()">Cancel</button>
+    </form>
+  </div>
+
+  <!-- Task List -->
+  <ul id="task-list"></ul>
+
+  <script>
+    const token = "{{ token }}";  // JWT from session
+
+    // Fetch and display all tasks
+    async function loadTasks() {
+      const resp = await fetch("/rest/tasks/", {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const data = await resp.json();
+      const tasks = data.results;
+      const list = document.getElementById("task-list");
+      list.innerHTML = "";
+
+      tasks.forEach(task => {
+        list.innerHTML += `
+          <li>
+            <b>${task.task_name}</b> - ${task.description} <b>Completed Status:</b> ${task.completed}
+            <button onclick="deleteTask(${task.id})">Delete</button>
+          </li>`;
+      });
+    }
+
+    // Delete a task
+    async function deleteTask(id) {
+      const confirmed = confirm("Are you sure you want to delete this task?");
+      if (!confirmed) return;
+
+      await fetch(`/rest/tasks/${id}/`, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token }
+      });
+      loadTasks();
+    }
+
+    // Show / hide create task form
+    function showCreateForm() { document.getElementById("task-form").style.display = "block"; }
+    function hideCreateForm() { document.getElementById("task-form").style.display = "none"; }
+
+    // Handle create task form submission
+    document.getElementById("createTaskForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const task_name = document.getElementById("task_name").value;
+      const description = document.getElementById("description").value;
+      const completed = document.getElementById("completed").checked;
+
+      await fetch("/rest/tasks/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ task_name, description, completed })
+      });
+
+      document.getElementById("createTaskForm").reset();
+      hideCreateForm();
+      loadTasks();
+    });
+
+    // Load tasks when page loads
+    loadTasks();
+  </script>
+</body>
+</html>
