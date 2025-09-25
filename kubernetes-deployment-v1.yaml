@@ -1,3 +1,4 @@
+# Using Load Balancer and setting database hostname with DNS
 # =========================================
 # Secrets for database credentials
 # =========================================
@@ -354,5 +355,6 @@ spec:
   ports:
     - name: http
       port: 8000
+      targetPort: 8001
       nodePort: 30081
       protocol: TCP

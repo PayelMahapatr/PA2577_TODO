@@ -1,3 +1,4 @@
+#Using Loadbalancer and not setting database hostname
 # =========================================
 # Secrets for database credentials
 # =========================================
@@ -5,6 +6,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: account-db-secret
+  labels:
+    app: account-db
 type: Opaque
 data:
   POSTGRES_DB: YWNjb3VudF9kYg==       # account_db
@@ -15,6 +18,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: todo-db-secret
+  labels:
+    app: todo-db
 type: Opaque
 data:
   POSTGRES_DB: dG9kby5kYg==           # todo_db
@@ -29,10 +34,13 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: django-config
+  labels:
+    data: django-config
+
 data:
-  ACCOUNTS_DB_HOST: "account-db"
+  ACCOUNTS_DB_HOST: "NOTSET"
   ACCOUNTS_DB_PORT: "5432"
-  TODO_DB_HOST: "todo-db"
+  TODO_DB_HOST: "NOTSET"
   TODO_DB_PORT: "5432"
 
 
@@ -45,6 +53,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: account-db
+  labels:
+    app: account-db
 spec:
   selector:
     app: account-db
@@ -55,6 +65,8 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: account-db
+  labels:
+    app: account-db
 spec:
   serviceName: account-db
   replicas: 1
@@ -90,6 +102,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: todo-db
+  labels:
+    app: todo-db
 spec:
   selector:
     app: todo-db
@@ -100,6 +114,8 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: todo-db
+  labels:
+    app: todo-db
 spec:
   serviceName: todo-db
   replicas: 1
@@ -139,6 +155,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: accounts
+  labels:
+    app: accounts
 spec:
   replicas: 1
   selector:
@@ -234,6 +252,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: accounts
+  labels:
+    app: accounts
 spec:
   type: LoadBalancer
   selector:
@@ -252,6 +272,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: todo
+  labels:
+    app: todo
 spec:
   replicas: 1
   selector:
@@ -347,12 +369,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: todo
+  labels:
+    app: todo
 spec:
   type: LoadBalancer
   selector:
     app: todo
   ports:
     - name: http
-      port: 8000
+      port: 8001
+      targetPort: 8000
       nodePort: 30081
       protocol: TCP
