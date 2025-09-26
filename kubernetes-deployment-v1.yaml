@@ -1,4 +1,4 @@
-# Using Load Balancer and setting database hostname with DNS
+# Using Load Balancer and setting database hostname using Service name
 # =========================================
 # Secrets for database credentials
 # =========================================
@@ -150,7 +150,7 @@ spec:
       labels:
         app: accounts
     spec:
-      initContainers:
+      initContainers:    # Logic to ensure service starts after database connection has been created
       - name: init-db
         image: payelmahapatra/accounts:latest
         command:
@@ -168,7 +168,7 @@ spec:
                     s.close()
                     break
                 except:
-                    print("Waiting for DB...")
+                    print("Waiting for DB to be started...")
                     time.sleep(2)
             EOF
             python manage.py migrate
@@ -263,7 +263,7 @@ spec:
       labels:
         app: todo
     spec:
-      initContainers:
+      initContainers:       # Logic to ensure service starts after database connection has been created
       - name: init-db
         image: payelmahapatra/todo:latest
         command:
@@ -281,7 +281,7 @@ spec:
                     s.close()
                     break
                 except:
-                    print("Waiting for DB...")
+                    print("Waiting for DB to be started...")
                     time.sleep(2)
             EOF
             python manage.py migrate
