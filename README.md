@@ -35,6 +35,6 @@ To deploy this project and access in your browser do the following steps :
 3. Open minikube tunnel in another terminal window. This assigns external IP to your loadbalancer services:
 
 ```minikube tunnel```
-4. Access the application from url : http://127.0.0.1:8001/
-5. Alternatively, If you do not want to use minikube tunnel, skip steps 3. and 4. Instead use the follwing command. Minikube opens the application in your browser for you.
+4. Access the application from url : http://127.0.0.1:8001/ 
+5. Alternatively, If you do not want to use minikube tunnel, skip steps 3 and 4 . Instead use the follwing command. Minikube opens the application in your browser for you.
 ```minikube service todo```
