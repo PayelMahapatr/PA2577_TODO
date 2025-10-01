@@ -22,10 +22,16 @@ are available publicly to be pulled.
 cation.
 • minikube and kubectl was used to deploy the services in
 kubernetes cluster.
-
+## Cloning application from Git
+1. Navigate to the cloned repository and cd into it.
+   
+    ```git clone https://github.com/PayelMahapatr/PA2577_TODO.git```
+   
+ ```cd PA2577_TODO ```
+   
 ## Deployment and Access Application
-To deploy this project and access in your browser do the following steps :
-1. Start minikube.
+To deploy this project and access in your browser do the following steps in the root folder PA2577_TODO :
+1. Open a terminal. Start minikube.
    ```minikube start```
 
 2. Deploy kubernetes file.
